@@ -15,6 +15,7 @@ services:
     volumes:
       - ./conf/hosts:/etc/hosts
       - ./ssh_keys/server:/root/.ssh
+      - ./ssh_host_keys/server:/etc/ssh
 
   ambari-agent1:
     image: bigtop/puppet:trunk-rockylinux-8
@@ -30,6 +31,7 @@ services:
     volumes:
       - ./conf/hosts:/etc/hosts
       - ./ssh_keys/agent1:/root/.ssh
+      - ./ssh_host_keys/agent1:/etc/ssh
 
   ambari-agent2:
     image: bigtop/puppet:trunk-rockylinux-8
@@ -45,6 +47,7 @@ services:
     volumes:
       - ./conf/hosts:/etc/hosts
       - ./ssh_keys/agent2:/root/.ssh
+      - ./ssh_host_keys/agent2:/etc/ssh
 
   ambari-agent3:
     image: bigtop/puppet:trunk-rockylinux-8
@@ -60,6 +63,7 @@ services:
     volumes:
       - ./conf/hosts:/etc/hosts
       - ./ssh_keys/agent3:/root/.ssh
+      - ./ssh_host_keys/agent3:/etc/ssh
 
 networks:
   ambari-net:
