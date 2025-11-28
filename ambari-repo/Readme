@@ -1,5 +1,8 @@
 # Work in repository root
 
+# Start the Docker containers
+docker compose up -d
+
 # Create a conf directory and add a hosts file for container hostname resolution
 
 mkdir -p conf
@@ -14,4 +17,7 @@ cat > conf/hosts << EOF
 172.20.0.5  bigtop_hostname3
 EOF
 
-# Setup SSH in each container
+# Configure SSH Access Between Containers
+
+./setup_ssh.sh
+
