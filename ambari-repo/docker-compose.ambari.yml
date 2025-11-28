@@ -1,7 +1,7 @@
 
 services:
   ambari-server:
-    image: bigtop/puppet:trunk-rockylinux-8
+    image: ambari-custom:latest
     container_name: ambari-server
     command: /sbin/init
     ports:
@@ -18,7 +18,7 @@ services:
       - ./ssh_host_keys/server:/etc/ssh
 
   ambari-agent1:
-    image: bigtop/puppet:trunk-rockylinux-8
+    image: ambari-custom:latest
     container_name: ambari-agent1
     command: /sbin/init
     environment:
@@ -34,7 +34,7 @@ services:
       - ./ssh_host_keys/agent1:/etc/ssh
 
   ambari-agent2:
-    image: bigtop/puppet:trunk-rockylinux-8
+    image: ambari-custom:latest
     container_name: ambari-agent2
     command: /sbin/init
     environment:
@@ -50,7 +50,7 @@ services:
       - ./ssh_host_keys/agent2:/etc/ssh
 
   ambari-agent3:
-    image: bigtop/puppet:trunk-rockylinux-8
+    image: ambari-custom:latest
     container_name: ambari-agent3
     command: /sbin/init
     environment:
