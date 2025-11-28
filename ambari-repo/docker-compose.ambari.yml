@@ -7,7 +7,6 @@ services:
     privileged: true
     ports:
       - "8080:8080"
-      - "3306:3306"
       - "5005:5005"
     networks:
       ambari-net:
