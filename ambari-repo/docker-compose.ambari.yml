@@ -1,7 +1,7 @@
 
 services:
   ambari-server:
-    image: apache/ambari-server:2.7.7
+    image: bigtop/puppet:trunk-rockylinux-8
     container_name: ambari-server
     ports:
       - "8080:8080"
@@ -16,7 +16,7 @@ services:
       - ./ssh_keys/server:/root/.ssh
 
   ambari-agent1:
-    image: apache/ambari-agent:2.7.7
+    image: bigtop/puppet:trunk-rockylinux-8
     container_name: ambari-agent1
     environment:
       - AMBARI_SERVER_HOST=ambari-server
@@ -30,7 +30,7 @@ services:
       - ./ssh_keys/agent1:/root/.ssh
 
   ambari-agent2:
-    image: apache/ambari-agent:2.7.7
+    image: bigtop/puppet:trunk-rockylinux-8
     container_name: ambari-agent2
     environment:
       - AMBARI_SERVER_HOST=ambari-server
@@ -44,7 +44,7 @@ services:
       - ./ssh_keys/agent2:/root/.ssh
 
   ambari-agent3:
-    image: apache/ambari-agent:2.7.7
+    image: bigtop/puppet:trunk-rockylinux-8
     container_name: ambari-agent3
     environment:
       - AMBARI_SERVER_HOST=ambari-server
