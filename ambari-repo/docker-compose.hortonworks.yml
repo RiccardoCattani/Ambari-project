@@ -1,0 +1,66 @@
+services:
+  ambari-server:
+    image: hortonworks/ambari-server:latest
+    container_name: ambari-server
+    hostname: ambari-server
+    privileged: true
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.4
+    volumes:
+      - ./conf/hosts:/etc/hosts
+
+  ambari-agent1:
+    image: hortonworks/ambari-agent:latest
+    container_name: ambari-agent1
+    hostname: ambari-agent1
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.2
+    volumes:
+      - ./conf/hosts:/etc/hosts
+    environment:
+      - AMBARI_SERVER=ambari-server
+
+  ambari-agent2:
+    image: hortonworks/ambari-agent:latest
+    container_name: ambari-agent2
+    hostname: ambari-agent2
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.3
+    volumes:
+      - ./conf/hosts:/etc/hosts
+    environment:
+      - AMBARI_SERVER=ambari-server
+
+  ambari-agent3:
+    image: hortonworks/ambari-agent:latest
+    container_name: ambari-agent3
+    hostname: ambari-agent3
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.5
+    volumes:
+      - ./conf/hosts:/etc/hosts
+    environment:
+      - AMBARI_SERVER=ambari-server
+
+networks:
+  ambari-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
