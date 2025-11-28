@@ -1,7 +1,6 @@
 services:
   ambari-server:
-    build: .
-    image: ambari-centos7:latest
+    image: hortonworks/ambari-server:latest
     container_name: ambari-server
     hostname: ambari-server
     privileged: true
@@ -13,12 +12,9 @@ services:
         ipv4_address: 172.19.0.4
     volumes:
       - ./conf/hosts:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    command: /usr/sbin/init
 
   ambari-agent1:
-    build: .
-    image: ambari-centos7:latest
+    image: hortonworks/ambari-agent:latest
     container_name: ambari-agent1
     hostname: ambari-agent1
     privileged: true
@@ -29,12 +25,11 @@ services:
         ipv4_address: 172.19.0.2
     volumes:
       - ./conf/hosts:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    command: /usr/sbin/init
+    environment:
+      - AMBARI_SERVER=ambari-server
 
   ambari-agent2:
-    build: .
-    image: ambari-centos7:latest
+    image: hortonworks/ambari-agent:latest
     container_name: ambari-agent2
     hostname: ambari-agent2
     privileged: true
@@ -45,12 +40,11 @@ services:
         ipv4_address: 172.19.0.3
     volumes:
       - ./conf/hosts:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    command: /usr/sbin/init
+    environment:
+      - AMBARI_SERVER=ambari-server
 
   ambari-agent3:
-    build: .
-    image: ambari-centos7:latest
+    image: hortonworks/ambari-agent:latest
     container_name: ambari-agent3
     hostname: ambari-agent3
     privileged: true
@@ -61,8 +55,8 @@ services:
         ipv4_address: 172.19.0.5
     volumes:
       - ./conf/hosts:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    command: /usr/sbin/init
+    environment:
+      - AMBARI_SERVER=ambari-server
 
 networks:
   ambari-net:

@@ -31,32 +31,26 @@ cat > conf/hosts << 'EOF'
 EOF
 ```
 
-## Passo 3: Build e avvio container
+## Passo 3: Avvio container (immagini Hortonworks)
 
-Costruisci l'immagine Docker e avvia i container:
+Avvia i container usando le immagini Hortonworks già pronte:
 
 ```bash
 docker compose -f docker-compose.ambari.yml up -d
 ```
 
 Questo creerà 4 container:
-- **ambari-server**: Server Ambari + MariaDB (porta 8080, 3306, 5005)
-- **ambari-agent1, ambari-agent2, ambari-agent3**: Nodi agent
+- `ambari-server` (porta `8080`)
+- `ambari-agent1`, `ambari-agent2`, `ambari-agent3`
 
-## Passo 4: Installa Ambari
+## Passo 4: Setup rapido
 
-Esegui lo script di setup:
+Esegui lo script di setup (configura gli agent e avvia i servizi):
 
 ```bash
 chmod +x setup-ambari.sh
 ./setup-ambari.sh
 ```
-
-Questo script:
-1. Scarica e installa Ambari Server e Agent da repository Hortonworks
-2. Configura MariaDB per Ambari
-3. Configura SSH tra i nodi
-4. Avvia Ambari Server
 
 ## Passo 5: Accedi alla Web UI
 
@@ -134,16 +128,15 @@ docker exec ambari-agent1 tail -n 100 /var/log/ambari-agent/ambari-agent.log
 ### Reset completo
 ```bash
 docker compose -f docker-compose.ambari.yml down -v
-docker rmi ambari-centos7:latest
+docker rmi hortonworks/ambari-server hortonworks/ambari-agent
 # Poi riparti dal Passo 3
 ```
 
 ## Note
 
-- Questa configurazione usa **CentOS 7** (testato e stabile con Ambari 2.7.5)
-- MariaDB è configurato con password 'root' per l'utente root
-- SSH è configurato senza password tra i nodi
-- I container girano in modalità privilegiata per systemd
+- Questa configurazione usa immagini Hortonworks `ambari-server` e `ambari-agent`
+- La Web UI è su `http://localhost:8080` (admin/admin)
+- Gli agent puntano all'host `ambari-server` via rete Docker
 
 ## Riferimenti
 
