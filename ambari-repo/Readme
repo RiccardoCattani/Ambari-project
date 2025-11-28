@@ -6,7 +6,10 @@ mkdir -p ssh_keys/server ssh_keys/agent1 ssh_keys/agent2 ssh_keys/agent3
 
 
 # Start the Docker containers
-docker compose up -d
+docker compose -f docker-compose.ambari.yml up -d
+
+# opzionale stop
+docker compose -f docker-compose.ambari.yml down
 
 # Per vedere nome e IP dei container (utile per aggiornare il file hosts):
 docker ps --format '{{.Names}}' | xargs -n1 -I{} sh -c "echo -n '{}: '; docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {}"
@@ -28,6 +31,9 @@ EOF
 docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.2   # ping bigtop_hostname1
 docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.4   # ping bigtop_hostname2
 docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.5   # ping bigtop_hostname3
+docker exec -it ambari-server ping -c 2 172.19.0.2   # ping ambari-agent1
+docker exec -it ambari-server ping -c 2 172.19.0.3   # ping ambari-agent2
+docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
 
 # Configure SSH Access Between Containers
 # Configure SSH on the primary container (bigtop_hostname0)
