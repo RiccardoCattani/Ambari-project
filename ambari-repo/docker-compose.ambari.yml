@@ -14,7 +14,7 @@ services:
         ipv4_address: 172.19.0.4
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys:/root/.ssh
+      - ./ssh_keys/server:/root/.ssh
 
   ambari-agent1:
     image: bigdataeurope/ambari:2.7.4
@@ -28,7 +28,7 @@ services:
         ipv4_address: 172.19.0.2
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys:/root/.ssh
+      - ./ssh_keys/agent1:/root/.ssh
 
   ambari-agent2:
     image: bigdataeurope/ambari:2.7.4
@@ -42,7 +42,7 @@ services:
         ipv4_address: 172.19.0.3
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys:/root/.ssh
+      - ./ssh_keys/agent2:/root/.ssh
 
   ambari-agent3:
     image: bigdataeurope/ambari:2.7.4
@@ -56,7 +56,7 @@ services:
         ipv4_address: 172.19.0.5
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys:/root/.ssh
+      - ./ssh_keys/agent3:/root/.ssh
 
 networks:
   ambari-net:
