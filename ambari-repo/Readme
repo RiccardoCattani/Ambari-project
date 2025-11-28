@@ -41,40 +41,70 @@ docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
  # Access the primary container (ambari-server)
 docker exec -it ambari-server bash
 
-
-
 # Generate SSH key
 ## Genera la chiave SSH in modo persistente (nella cartella montata)
 # Generare la chiave SSH per ambari-server in modo persistente (nella cartella montata):
-ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa   # (dentro il container, con volume ./ssh_keys/server)
 
-# Start SSH service
+ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa   # (dentro il container, con volume ./ssh_keys/server)
+# Avvia il demone SSH per abilitare l'accesso:
+/usr/sbin/sshd -D &
+
+
 # Le chiavi host SSH ora sono persistenti nella directory montata ./ssh_host_keys/<container>.
-# Prima di avviare sshd, assicurati che le chiavi host siano presenti (necessarie per sshd):
+# Prima di avviare sshd, assicurati che le chiavi host siano presenti (necessarie per sshd) e avvialo:
 if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
 	ssh-keygen -A
 fi
 /usr/sbin/sshd -D &
+
 
 # Per ogni container, genera la chiave nella directory dedicata:
 ## Per ambari-agent1:
 # Entra nel container ambari-agent1
 docker exec -it ambari-agent1 bash
 
+# Installa openssh-server se non è già presente
+dnf install -y openssh-clients openssh-server
+
 # Genera la chiave SSH in modo persistente (nella cartella montata)
 ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa   # (dentro il container, con volume ./ssh_keys/agent1)
+
+# Avvia il demone SSH per abilitare l'accesso:
+# Prima di avviare sshd, assicurati che le chiavi host siano presenti (necessarie per sshd) e avvialo:
+if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+	ssh-keygen -A
+fi
+/usr/sbin/sshd -D &
+
 ## Per ambari-agent2:
 # Entra nel container ambari-agent2
 docker exec -it ambari-agent2 bash
 
+
+# Installa openssh-clients se non è già presente
+dnf install -y openssh-clients openssh-server
 # Genera la chiave SSH in modo persistente (nella cartella montata)
 ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa   # (dentro il container, con volume ./ssh_keys/agent2)
+
+# Avvia il demone SSH per abilitare l'accesso:
+if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+	ssh-keygen -A
+fi
+/usr/sbin/sshd -D &
+
 ## Per ambari-agent3:
 # Entra nel container ambari-agent3
 docker exec -it ambari-agent3 bash
 
+# Installa openssh-clients se non è già presente
+dnf install -y openssh-clients openssh-server
 # genera chiave SSH in modo persistente (nella cartella montata)
 ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa   # (dentro il container, con volume ./ssh_keys/agent3)
+# Avvia il demone SSH per abilitare l'accesso e le chiavi host sono persistenti nella directory montata ./ssh_host_keys/<container>):
+if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+	ssh-keygen -A
+fi
+/usr/sbin/sshd -D &
 
 # Ora ogni chiave sarà visibile nella rispettiva cartella ./ssh_keys/<nome> sul tuo host
 
@@ -111,11 +141,16 @@ exit
 
 
 ## Copy SSH key from server to agents
-docker cp ambari-server:/root/.ssh/id_rsa.pub /tmp/id_rsa.pub
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent1 bash -c 'cat >> ~/.ssh/authorized_keys'
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent2 bash -c 'cat >> ~/.ssh/authorized_keys'
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent3 bash -c 'cat >> ~/.ssh/authorized_keys'
-rm /tmp/id_rsa.pub
+# Assicurati che la chiave pubblica esista prima di copiarla:
+if docker exec ambari-server test -f /root/.ssh/id_rsa.pub; then
+	docker cp ambari-server:/root/.ssh/id_rsa.pub /tmp/id_rsa.pub
+	cat /tmp/id_rsa.pub | docker exec -i ambari-agent1 bash -c 'cat >> ~/.ssh/authorized_keys'
+	cat /tmp/id_rsa.pub | docker exec -i ambari-agent2 bash -c 'cat >> ~/.ssh/authorized_keys'
+	cat /tmp/id_rsa.pub | docker exec -i ambari-agent3 bash -c 'cat >> ~/.ssh/authorized_keys'
+	rm /tmp/id_rsa.pub
+else
+	echo "La chiave pubblica /root/.ssh/id_rsa.pub non esiste su ambari-server. Generala prima con ssh-keygen."
+fi
 
 
 # Entra nel container primario per testare le connessioni SSH
@@ -171,14 +206,25 @@ dnf config-manager --set-enabled powertools &&
 dnf update -y
 "
 ## Enable Rocky-Devel repository on all containers
-# Per ambari-server
-docker exec -it ambari-server bash
-# (Modifica manualmente il file con
-vi /etc/yum.repos.d/Rocky-Devel.repo
-# There are two possible scenarios:
-# 1. If all lines are commented (start with #), uncomment all lines
-# 2. If you see "enabled=0", change it to "enabled=1"
+# Rendi persistente la configurazione dei repository Rocky-Devel montando la directory dei repo dal tuo host:
+# 1. Crea una cartella locale per i repo (se non esiste):
+mkdir -p yum_repos
 
+# 2. Nel docker-compose.yml aggiungi il volume per ogni container:
+#   - ./yum_repos:/etc/yum.repos.d
+# 3. Avvia i container. Ora ogni modifica fatta a /etc/yum.repos.d dentro i container sarà persistente e visibile anche su ./yum_repos dell'host.
+# Entra nel container ambari-server:
+docker exec -it ambari-server bash
+# 4. Modifica il file Rocky-Devel.repo direttamente nella cartella montata (sul tuo host o da un container):
+vi yum_repos/Rocky-Devel.repo
+
+#   - Se tutte le linee sono commentate (#), decommentale
+#   - Se trovi "enabled=0", cambialo in "enabled=1"
+
+# Per ambari-server
+# Esegui questi comandi solo la prima volta che crei un nuovo container Rocky Linux (immagine base),
+# oppure se non hai già incluso i pacchetti nel tuo Dockerfile custom.
+# Se usi la tua immagine custom (es. ambari-custom:latest), questi pacchetti sono già installati e puoi saltare questo step.
 # Poi esegui:
 dnf repolist | grep devel
 exit
