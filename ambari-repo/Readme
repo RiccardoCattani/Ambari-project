@@ -215,6 +215,7 @@ mkdir -p yum_repos
 # 3. Avvia i container. Ora ogni modifica fatta a /etc/yum.repos.d dentro i container sarà persistente e visibile anche su ./yum_repos dell'host.
 # Entra nel container ambari-server:
 docker exec -it ambari-server bash
+
 # 4. Modifica il file Rocky-Devel.repo direttamente nella cartella montata (sul tuo host o da un container):
 vi yum_repos/Rocky-Devel.repo
 
@@ -295,41 +296,6 @@ ambari-server start
 netstat -tlnp | grep 8080
 
 exit
-
-
-## Install Ambari Agent on all containers (including bigtop_hostname0)
-
-# For bigtop_hostname0
-docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "
-yum install -y ambari-agent
-sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
-ambari-agent start
-"
-
-# For bigtop_hostname1
-docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "
-wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
-yum install -y ambari-agent
-sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
-ambari-agent start
-"
-
-# For bigtop_hostname2
-docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "
-wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
-yum install -y ambari-agent
-sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
-ambari-agent start
-"
-
-# For bigtop_hostname3
-docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "
-wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
-yum install -y ambari-agent
-sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
-ambari-agent start
-"
-
 
 ## Access Ambari Web UI
 # Open browser and navigate to:

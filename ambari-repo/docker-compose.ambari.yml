@@ -1,29 +1,28 @@
-
 services:
   ambari-server:
-    image: ambari-custom:latest
+    build: .
+    image: ambari-centos7:latest
     container_name: ambari-server
-    command: /sbin/init
+    hostname: ambari-server
+    privileged: true
     ports:
       - "8080:8080"
-    environment:
-      - AMBARI_SERVER=true
-      - BOOTSTRAP=true
+      - "3306:3306"
+      - "5005:5005"
     networks:
       ambari-net:
         ipv4_address: 172.19.0.4
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys/server:/root/.ssh
-      - ./ssh_host_keys/server:/etc/ssh
-      - ./yum_repos:/etc/yum.repos.d
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
 
   ambari-agent1:
-    image: ambari-custom:latest
+    build: .
+    image: ambari-centos7:latest
     container_name: ambari-agent1
-    command: /sbin/init
-    environment:
-      - AMBARI_SERVER_HOST=ambari-server
+    hostname: ambari-agent1
+    privileged: true
     depends_on:
       - ambari-server
     networks:
@@ -31,16 +30,15 @@ services:
         ipv4_address: 172.19.0.2
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys/agent1:/root/.ssh
-      - ./ssh_host_keys/agent1:/etc/ssh
-      - ./yum_repos:/etc/yum.repos.d
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
 
   ambari-agent2:
-    image: ambari-custom:latest
+    build: .
+    image: ambari-centos7:latest
     container_name: ambari-agent2
-    command: /sbin/init
-    environment:
-      - AMBARI_SERVER_HOST=ambari-server
+    hostname: ambari-agent2
+    privileged: true
     depends_on:
       - ambari-server
     networks:
@@ -48,16 +46,15 @@ services:
         ipv4_address: 172.19.0.3
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys/agent2:/root/.ssh
-      - ./ssh_host_keys/agent2:/etc/ssh
-      - ./yum_repos:/etc/yum.repos.d
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
 
   ambari-agent3:
-    image: ambari-custom:latest
+    build: .
+    image: ambari-centos7:latest
     container_name: ambari-agent3
-    command: /sbin/init
-    environment:
-      - AMBARI_SERVER_HOST=ambari-server
+    hostname: ambari-agent3
+    privileged: true
     depends_on:
       - ambari-server
     networks:
@@ -65,9 +62,8 @@ services:
         ipv4_address: 172.19.0.5
     volumes:
       - ./conf/hosts:/etc/hosts
-      - ./ssh_keys/agent3:/root/.ssh
-      - ./ssh_host_keys/agent3:/etc/ssh
-      - ./yum_repos:/etc/yum.repos.d
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
 
 networks:
   ambari-net:

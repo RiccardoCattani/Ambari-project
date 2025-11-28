@@ -1,10 +1,35 @@
-FROM bigtop/puppet:trunk-rockylinux-8
+# Dockerfile basato sul setup testato Apache Ambari (CentOS 7)
+# Fonte: https://github.com/apache/ambari/tree/main/dev-support/docker/centos7
 
-RUN yum install -y openssh openssh-server openssh-clients && \
-    yum clean all
+FROM centos:7
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Installa pacchetti base necessari per Ambari
+RUN yum -y install \
+    sudo \
+    wget \
+    openssh-clients \
+    openssh-server \
+    vim \
+    mariadb \
+    mariadb-server \
+    java-1.8.0-openjdk-devel \
+    net-tools \
+    chrony \
+    krb5-server \
+    krb5-libs \
+    krb5-workstation \
+    git \
+    rpm-build \
+  && yum clean all
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/sbin/init"]
+# Scarica MySQL Connector
+RUN wget https://repo1.maven.org/maven2/mysql/mysql-connector-java/5.1.47/mysql-connector-java-5.1.47.jar \
+    -O /usr/share/java/mysql-connector-java.jar
+
+# Configura SSH
+RUN /bin/sed -i 's,#   StrictHostKeyChecking ask,StrictHostKeyChecking no,g' /etc/ssh/ssh_config && \
+    ssh-keygen -f "/root/.ssh/id_rsa" -N ""
+
+EXPOSE 1-65535
+
+CMD ["/usr/sbin/init"]
