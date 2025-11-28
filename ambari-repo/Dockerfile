@@ -3,23 +3,35 @@
 
 FROM centos:7
 
-# Installa pacchetti base necessari per Ambari
+# Fix repository per CentOS 7 EOL
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo && \
+    yum clean all && \
+    yum makecache
+
+# Installa pacchetti base necessari per Ambari (in due step per evitare timeout)
 RUN yum -y install \
     sudo \
     wget \
     openssh-clients \
     openssh-server \
     vim \
+    net-tools \
+  && yum clean all
+
+RUN yum -y install \
     mariadb \
     mariadb-server \
     java-1.8.0-openjdk-devel \
-    net-tools \
     chrony \
+    git \
+    rpm-build \
+  && yum clean all
+
+RUN yum -y install \
     krb5-server \
     krb5-libs \
     krb5-workstation \
-    git \
-    rpm-build \
   && yum clean all
 
 # Scarica MySQL Connector
@@ -33,3 +45,4 @@ RUN /bin/sed -i 's,#   StrictHostKeyChecking ask,StrictHostKeyChecking no,g' /et
 EXPOSE 1-65535
 
 CMD ["/usr/sbin/init"]
+
