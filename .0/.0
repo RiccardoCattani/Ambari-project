@@ -1,0 +1,3 @@
+
+# Verifica presenza chiave per connessione repository remoto
+ls ~/.ssh/id_*
