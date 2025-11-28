@@ -3,36 +3,28 @@
 
 FROM centos:7
 
-# Fix repository per CentOS 7 EOL
-RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo && \
-    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo && \
-    yum clean all && \
-    yum makecache
+# Fix repository per CentOS 7 EOL - usa vault.centos.org
+RUN cd /etc/yum.repos.d/ && \
+    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo && \
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
 
-# Installa pacchetti base necessari per Ambari (in due step per evitare timeout)
-RUN yum -y install \
-    sudo \
-    wget \
-    openssh-clients \
-    openssh-server \
-    vim \
-    net-tools \
-  && yum clean all
+# Aggiorna metadata e cache
+RUN yum clean all && rm -rf /var/cache/yum && yum makecache fast
 
-RUN yum -y install \
-    mariadb \
-    mariadb-server \
-    java-1.8.0-openjdk-devel \
-    chrony \
-    git \
-    rpm-build \
-  && yum clean all
+# Installa pacchetti base (step 1)
+RUN yum -y install sudo wget openssh-clients openssh-server vim net-tools
 
-RUN yum -y install \
-    krb5-server \
-    krb5-libs \
-    krb5-workstation \
-  && yum clean all
+# Installa database e Java (step 2)  
+RUN yum -y install mariadb mariadb-server java-1.8.0-openjdk-devel
+
+# Installa utilities (step 3)
+RUN yum -y install chrony git rpm-build
+
+# Installa Kerberos (step 4)
+RUN yum -y install krb5-server krb5-libs krb5-workstation
+
+# Pulizia finale
+RUN yum clean all && rm -rf /var/cache/yum
 
 # Scarica MySQL Connector
 RUN wget https://repo1.maven.org/maven2/mysql/mysql-connector-java/5.1.47/mysql-connector-java-5.1.47.jar \
