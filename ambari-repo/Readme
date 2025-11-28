@@ -27,10 +27,6 @@ cat > conf/hosts << EOF
 172.19.0.5 ambari-agent3
 EOF
 
-docker exec -it ambari-server ping -c 2 172.19.0.2   # ping ambari-agent1
-docker exec -it ambari-server ping -c 2 172.19.0.3   # ping ambari-agent2
-docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
-
 # Verify connectivity between containers
 docker exec -it ambari-server ping -c 2 172.19.0.2   # ping ambari-agent1
 docker exec -it ambari-server ping -c 2 172.19.0.3   # ping ambari-agent2
@@ -39,7 +35,7 @@ docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
 # Configure SSH Access Between Containers
 # Configure SSH on the primary container (ambari-server)
 
- # Access the primary container
+ # Access the primary container (ambari-server)
 docker exec -it ambari-server bash
 
 # installa openssh-server e client (client e server) se non presenti
