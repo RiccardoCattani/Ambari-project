@@ -1,0 +1,72 @@
+services:
+  ambari-server:
+    build: .
+    image: ambari-centos7:latest
+    container_name: ambari-server
+    hostname: ambari-server
+    privileged: true
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.4
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+  ambari-agent1:
+    build: .
+    image: ambari-centos7:latest
+    container_name: ambari-agent1
+    hostname: ambari-agent1
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.2
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+  ambari-agent2:
+    build: .
+    image: ambari-centos7:latest
+    container_name: ambari-agent2
+    hostname: ambari-agent2
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.3
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+  ambari-agent3:
+    build: .
+    image: ambari-centos7:latest
+    container_name: ambari-agent3
+    hostname: ambari-agent3
+    privileged: true
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.5
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+networks:
+  ambari-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
