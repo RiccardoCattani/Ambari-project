@@ -21,25 +21,26 @@ cat > conf/hosts << EOF
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 
 # Container hostnames (aggiornare con gli IP reali)
-172.19.0.4 bigtop_hostname0
-172.19.0.2 bigtop_hostname1
-172.19.0.3 bigtop_hostname2
-172.19.0.5 bigtop_hostname3
+172.19.0.4 ambari-server
+172.19.0.2 ambari-agent1
+172.19.0.3 ambari-agent2
+172.19.0.5 ambari-agent3
 EOF
 
+docker exec -it ambari-server ping -c 2 172.19.0.2   # ping ambari-agent1
+docker exec -it ambari-server ping -c 2 172.19.0.3   # ping ambari-agent2
+docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
+
 # Verify connectivity between containers
-docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.2   # ping bigtop_hostname1
-docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.4   # ping bigtop_hostname2
-docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.5   # ping bigtop_hostname3
 docker exec -it ambari-server ping -c 2 172.19.0.2   # ping ambari-agent1
 docker exec -it ambari-server ping -c 2 172.19.0.3   # ping ambari-agent2
 docker exec -it ambari-server ping -c 2 172.19.0.5   # ping ambari-agent3
 
 # Configure SSH Access Between Containers
-# Configure SSH on the primary container (bigtop_hostname0)
+# Configure SSH on the primary container (ambari-server)
 
  # Access the primary container
-docker exec -it ambari-repo-bigtop_hostname0-1  bash
+docker exec -it ambari-server bash
 
 # installa openssh-server e client (client e server) se non presenti
 yum install -y openssh openssh-server openssh-clients
@@ -68,8 +69,8 @@ exit
 # Configure SSH on the other containers (bigtop_hostname1, bigtop_hostname2, bigtop_hostname3)
 # Repeat SSH configuration on all other containers (hostname1, 2, 3)
 
-# For bigtop_hostname1
-docker exec -it ambari-repo-bigtop_hostname1-1 bash
+# For ambari-agent1
+docker exec -it ambari-agent1 bash
 yum install -y openssh openssh-server openssh-clients
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 systemctl enable sshd
@@ -77,8 +78,8 @@ systemctl start sshd
 exit
 
 
-# For bigtop_hostname2
-docker exec -it ambari-repo-bigtop_hostname2-1 bash
+# For ambari-agent2
+docker exec -it ambari-agent2 bash
 yum install -y openssh openssh-server openssh-clients
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 systemctl enable sshd
@@ -86,40 +87,42 @@ systemctl start sshd
 exit
 
 
-# For bigtop_hostname3
-docker exec -it ambari-repo-bigtop_hostname3-1 bash
+# For ambari-agent3
+docker exec -it ambari-agent3 bash
 yum install -y openssh openssh-server openssh-clients
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 systemctl enable sshd
 systemctl start sshd
 exit
+
 
 ## Copy SSH key from server to agents
-docker cp ambari-repo-bigtop_hostname0-1:/root/.ssh/id_rsa.pub /tmp/id_rsa.pub
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-repo-bigtop_hostname1-1 bash -c 'cat >> ~/.ssh/authorized_keys'
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-repo-bigtop_hostname2-1 bash -c 'cat >> ~/.ssh/authorized_keys'
-cat ~/.ssh/id_rsa.pub | docker exec -i ambari-repo-bigtop_hostname3-1 bash -c 'cat >> ~/.ssh/authorized_keys'
+docker cp ambari-server:/root/.ssh/id_rsa.pub /tmp/id_rsa.pub
+cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent1 bash -c 'cat >> ~/.ssh/authorized_keys'
+cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent2 bash -c 'cat >> ~/.ssh/authorized_keys'
+cat ~/.ssh/id_rsa.pub | docker exec -i ambari-agent3 bash -c 'cat >> ~/.ssh/authorized_keys'
 rm /tmp/id_rsa.pub
 
-# Entra nel container primario per testare le connessioni SSH
-docker exec -it ambari-repo-bigtop_hostname0-1 bash
 
-# Test SSH connections (da dentro ambari-repo-bigtop_hostname0-1)
-ssh -o StrictHostKeyChecking=no bigtop_hostname1 echo "Connection successful"
-ssh -o StrictHostKeyChecking=no bigtop_hostname2 echo "Connection successful"
-ssh -o StrictHostKeyChecking=no bigtop_hostname3 echo "Connection successful"
+# Entra nel container primario per testare le connessioni SSH
+docker exec -it ambari-server bash
+
+# Test SSH connections (da dentro ambari-server)
+ssh -o StrictHostKeyChecking=no ambari-agent1 echo "Connection successful"
+ssh -o StrictHostKeyChecking=no ambari-agent2 echo "Connection successful"
+ssh -o StrictHostKeyChecking=no ambari-agent3 echo "Connection successful"
 exit
 
 # Disable SELinux on all containers
-docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
-docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
-docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
-docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-server bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-agent1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-agent2 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-agent3 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
 
 
 ## Install necessary packages on all containers
-# Per ambari-repo-bigtop_hostname0-1
-docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "
+# Per ambari-server
+docker exec -it ambari-server bash -c "
 dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
 dnf install -y initscripts wget curl tar unzip git &&
 dnf install -y dnf-plugins-core &&
@@ -127,8 +130,8 @@ dnf config-manager --set-enabled powertools &&
 dnf update -y
 "
 
-# Per ambari-repo-bigtop_hostname1-1
-docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "
+# Per ambari-agent1
+docker exec -it ambari-agent1 bash -c "
 dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
 dnf install -y initscripts wget curl tar unzip git &&
 dnf install -y dnf-plugins-core &&
@@ -136,8 +139,8 @@ dnf config-manager --set-enabled powertools &&
 dnf update -y
 "
 
-# Per ambari-repo-bigtop_hostname2-1
-docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "
+# Per ambari-agent2
+docker exec -it ambari-agent2 bash -c "
 dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
 dnf install -y initscripts wget curl tar unzip git &&
 dnf install -y dnf-plugins-core &&
@@ -145,8 +148,8 @@ dnf config-manager --set-enabled powertools &&
 dnf update -y
 "
 
-# Per ambari-repo-bigtop_hostname3-1
-docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "
+# Per ambari-agent3
+docker exec -it ambari-agent3 bash -c "
 dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
 dnf install -y initscripts wget curl tar unzip git &&
 dnf install -y dnf-plugins-core &&
@@ -154,8 +157,8 @@ dnf config-manager --set-enabled powertools &&
 dnf update -y
 "
 ## Enable Rocky-Devel repository on all containers
-# Per ambari-repo-bigtop_hostname0-1
-docker exec -it ambari-repo-bigtop_hostname0-1 bash
+# Per ambari-server
+docker exec -it ambari-server bash
 # (Modifica manualmente il file con
 vi /etc/yum.repos.d/Rocky-Devel.repo
 # There are two possible scenarios:
@@ -166,8 +169,8 @@ vi /etc/yum.repos.d/Rocky-Devel.repo
 dnf repolist | grep devel
 exit
 
-# Per ambari-repo-bigtop_hostname1-1
-docker exec -it ambari-repo-bigtop_hostname1-1 bash
+# Per ambari-agent1
+docker exec -it ambari-agent1 bash
 # (Modifica manualmente il file con
 vi /etc/yum.repos.d/Rocky-Devel.repo
 # There are two possible scenarios:
@@ -178,8 +181,8 @@ vi /etc/yum.repos.d/Rocky-Devel.repo
 dnf repolist | grep devel
 exit
 
-# Per ambari-repo-bigtop_hostname2-1
-docker exec -it ambari-repo-bigtop_hostname2-1 bash
+# Per ambari-agent2
+docker exec -it ambari-agent2 bash
 # (Modifica manualmente il file con
 vi /etc/yum.repos.d/Rocky-Devel.repo
 # There are two possible scenarios:
@@ -190,8 +193,8 @@ vi /etc/yum.repos.d/Rocky-Devel.repo
 dnf repolist | grep devel
 exit
 
-# Per ambari-repo-bigtop_hostname3-1
-docker exec -it ambari-repo-bigtop_hostname3-1 bash
+# Per ambari-agent3
+docker exec -it ambari-agent3 bash
 # (Modifica manualmente il file con
 vi /etc/yum.repos.d/Rocky-Devel.repo
 # There are two possible scenarios:
