@@ -1,108 +1,55 @@
 #!/bin/bash
-# Script per installare e configurare Ambari Server e Agent
-# Basato sul setup testato Apache Ambari CentOS 7
+# Installazione manuale Ambari Server + Agent tramite RPM locali
+# Da eseguire sull'host (non dentro un container)
+set -euo pipefail
 
-set -e
+AMBARI_VERSION="2.7.5.0-72"
+RPM_DIR="rpms"
+AGENTS=(ambari-agent1 ambari-agent2 ambari-agent3)
+SERVER=ambari-server
 
-echo "=========================================="
-echo "Setup Ambari (Hortonworks images)"
-echo "=========================================="
+echo "=== Verifica prerequisiti RPM ==="
+if [[ ! -d "$RPM_DIR" ]]; then
+  echo "Cartella $RPM_DIR mancante. Esegui ./download-ambari-rpms.sh prima."; exit 1; fi
+for req in "ambari-server-${AMBARI_VERSION}.noarch.rpm" "ambari-agent-${AMBARI_VERSION}.noarch.rpm" "ambari-log4j-${AMBARI_VERSION}.noarch.rpm"; do
+  if [[ ! -f "$RPM_DIR/$req" ]]; then echo "RPM mancante: $RPM_DIR/$req"; exit 1; fi; done
 
-# Avvia Ambari Server (immagine hortonworks espone già il servizio)
-docker exec ambari-server bash -c "ambari-server start || true"
+echo "=== Installazione Ambari Server RPM ==="
+docker cp "$RPM_DIR/ambari-server-${AMBARI_VERSION}.noarch.rpm" $SERVER:/tmp/
+docker cp "$RPM_DIR/ambari-log4j-${AMBARI_VERSION}.noarch.rpm" $SERVER:/tmp/
+docker exec $SERVER yum localinstall -y /tmp/ambari-server-${AMBARI_VERSION}.noarch.rpm /tmp/ambari-log4j-${AMBARI_VERSION}.noarch.rpm
 
-# Recupera chiave pubblica SSH del server (se presente)
-SERVER_PUB_KEY=$(docker exec ambari-server /bin/sh -c "test -f /root/.ssh/id_rsa.pub && cat /root/.ssh/id_rsa.pub || true")
+echo "=== Setup Ambari Server (embedded Postgres) ==="
+docker exec $SERVER ambari-server setup -s
 
-echo "=========================================="
-echo "Setup Ambari Agents"
-echo "=========================================="
+echo "=== Avvio Ambari Server ==="
+docker exec $SERVER ambari-server start
+docker exec $SERVER ambari-server status || true
 
-# Configura server per gli agent e avvia
-docker exec ambari-agent1 bash -c "
-echo "=========================================="
-echo "Setup Ambari (Custom RPM install)"
-echo "=========================================="
+echo "=== Generazione chiave SSH server (se assente) ==="
+docker exec $SERVER bash -c "[ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa"
+SERVER_PRIV_KEY=$(docker exec $SERVER cat /root/.ssh/id_rsa)
+SERVER_PUB_KEY=$(docker exec $SERVER cat /root/.ssh/id_rsa.pub)
 
-# Verifica RPM locali
-if [ ! -d rpms ]; then
-	echo "Directory rpms mancante. Esegui prima: ./download-ambari-rpms.sh"
-	exit 1
-fi
-for f in rpms/ambari-server-*.rpm rpms/ambari-agent-*.rpm rpms/ambari-log4j-*.rpm; do
-	if [ ! -f "$f" ]; then
-		echo "File RPM mancante: $f"
-		echo "Esegui ./download-ambari-rpms.sh"
-		exit 1
-	fi
+echo "=== Installazione Ambari Agent sui nodi ==="
+for a in "${AGENTS[@]}"; do
+  echo "-- $a"
+  docker cp "$RPM_DIR/ambari-agent-${AMBARI_VERSION}.noarch.rpm" $a:/tmp/
+  docker cp "$RPM_DIR/ambari-log4j-${AMBARI_VERSION}.noarch.rpm" $a:/tmp/
+  docker exec $a yum localinstall -y /tmp/ambari-agent-${AMBARI_VERSION}.noarch.rpm /tmp/ambari-log4j-${AMBARI_VERSION}.noarch.rpm
+  docker exec $a bash -c "[ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa"
+  echo "$SERVER_PUB_KEY" | docker exec -i $a bash -c "cat >> /root/.ssh/authorized_keys"
+  docker exec $a sed -i "s/^server=.*/server=$SERVER/" /etc/ambari-agent/conf/ambari-agent.ini || true
+  docker exec $a ambari-agent start || true
+  docker exec $a ambari-agent status || true
 done
 
-echo "Installazione Ambari Server RPM"
-docker cp rpms/ambari-server-*.rpm ambari-server:/tmp/
-docker cp rpms/ambari-log4j-*.rpm ambari-server:/tmp/
-docker exec ambari-server yum localinstall -y /tmp/ambari-server-*.rpm /tmp/ambari-log4j-*.rpm
-
-echo "Esecuzione ambari-server setup (embedded DB)"
-docker exec ambari-server ambari-server setup -s
-
-echo "Avvio Ambari Server"
-docker exec ambari-server ambari-server start
-
-# Chiave SSH (se non esiste la generiamo)
-docker exec ambari-server bash -c "[ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa"
-SERVER_PUB_KEY=$(docker exec ambari-server cat /root/.ssh/id_rsa.pub)
-
-echo "Installazione Ambari Agent RPM sui nodi"
-for agent in ambari-agent1 ambari-agent2 ambari-agent3; do
-	echo "-- $agent"
-	docker cp rpms/ambari-agent-*.rpm $agent:/tmp/
-	docker cp rpms/ambari-log4j-*.rpm $agent:/tmp/
-	docker exec $agent yum localinstall -y /tmp/ambari-agent-*.rpm /tmp/ambari-log4j-*.rpm
-	docker exec $agent bash -c "[ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa"
-	echo "$SERVER_PUB_KEY" | docker exec -i $agent bash -c "cat >> /root/.ssh/authorized_keys"
-	# Configura server hostname in ambari-agent.ini
-	docker exec $agent sed -i "s/^server=.*/server=ambari-server/" /etc/ambari-agent/conf/ambari-agent.ini || true
-	docker exec $agent ambari-agent start || true
-	docker exec $agent ambari-agent status || true
-done
+echo "=== Riepilogo stato agent ==="
+for a in "${AGENTS[@]}"; do docker exec $a ambari-agent status || true; done
 
 echo "=========================================="
-echo "Ambari Setup Completato!"
-echo "=========================================="
-echo "Accedi alla Web UI: http://localhost:8080"
-echo "Username: admin"
-echo "Password: admin"
-echo "=========================================="
-echo "Chiave privata SSH del server (per wizard host registration):"
-docker exec ambari-server cat /root/.ssh/id_rsa
-echo "=========================================="
-
-echo 'server=ambari-server' > /etc/ambari-agent/conf/ambari-agent.ini && \
-ambari-agent start || true
-
-"
-
-docker exec ambari-agent2 bash -c "
-echo 'server=ambari-server' > /etc/ambari-agent/conf/ambari-agent.ini && \
-ambari-agent start || true
-"
-
-docker exec ambari-agent3 bash -c "
-echo 'server=ambari-server' > /etc/ambari-agent/conf/ambari-agent.ini && \
-ambari-agent start || true
-"
-
-echo "=========================================="
-echo "Ambari Setup Completato!"
-echo "=========================================="
-echo "Accedi alla Web UI: http://localhost:8080"
-echo "Username: admin"
-echo "Password: admin"
-echo "=========================================="
-if [ -n "$SERVER_PUB_KEY" ]; then
-	echo "Chiave pubblica SSH del server:";
-	echo "$SERVER_PUB_KEY"
-else
-	echo "Nessuna chiave SSH trovata su ambari-server (opzionale per wizard)."
-fi
+echo "Ambari Setup Completato"
+echo "UI: http://localhost:8080 (admin/admin)"
+echo "Chiave privata da usare nel wizard:" 
+echo "$SERVER_PRIV_KEY"
 echo "=========================================="
