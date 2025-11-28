@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+  ambari-server:
+    image: bigdataeurope/ambari:2.7.4
+    container_name: ambari-server
+    ports:
+      - "8080:8080"
+    environment:
+      - AMBARI_SERVER=true
+      - BOOTSTRAP=true
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.4
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - ./ssh_keys:/root/.ssh
+
+  ambari-agent1:
+    image: bigdataeurope/ambari:2.7.4
+    container_name: ambari-agent1
+    environment:
+      - AMBARI_SERVER_HOST=ambari-server
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.2
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - ./ssh_keys:/root/.ssh
+
+  ambari-agent2:
+    image: bigdataeurope/ambari:2.7.4
+    container_name: ambari-agent2
+    environment:
+      - AMBARI_SERVER_HOST=ambari-server
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.3
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - ./ssh_keys:/root/.ssh
+
+  ambari-agent3:
+    image: bigdataeurope/ambari:2.7.4
+    container_name: ambari-agent3
+    environment:
+      - AMBARI_SERVER_HOST=ambari-server
+    depends_on:
+      - ambari-server
+    networks:
+      ambari-net:
+        ipv4_address: 172.19.0.5
+    volumes:
+      - ./conf/hosts:/etc/hosts
+      - ./ssh_keys:/root/.ssh
+
+networks:
+  ambari-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24

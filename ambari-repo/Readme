@@ -2,25 +2,25 @@
 
 # creare cartella conf se non esiste
 mkdir -p conf
-
+mkdir -p ssh_keys
 
 
 # Start the Docker containers
 docker compose up -d
 
-
-# creare cartella conf se non esiste
-mkdir -p conf
+# Per vedere nome e IP dei container (utile per aggiornare il file hosts):
+docker ps --format '{{.Names}}' | xargs -n1 -I{} sh -c "echo -n '{}: '; docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {}"
 
 ## Creare file hosts per risoluzione hostname container (Accertarsi che gli IP corrispondano a quelli definiti nel docker-compose.yml)
+# Come da docker compose, questi ip sono statici e assegnati ai container
 cat > conf/hosts << EOF
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 
-# Container hostnames
-172.19.0.3 bigtop_hostname0
+# Container hostnames (aggiornare con gli IP reali)
+172.19.0.4 bigtop_hostname0
 172.19.0.2 bigtop_hostname1
-172.19.0.4 bigtop_hostname2
+172.19.0.3 bigtop_hostname2
 172.19.0.5 bigtop_hostname3
 EOF
 
@@ -92,3 +92,174 @@ ssh -o StrictHostKeyChecking=no bigtop_hostname1 echo "Connection successful"
 ssh -o StrictHostKeyChecking=no bigtop_hostname2 echo "Connection successful"
 ssh -o StrictHostKeyChecking=no bigtop_hostname3 echo "Connection successful"
 exit
+
+# Disable SELinux on all containers
+docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config"
+
+
+## Install necessary packages on all containers
+# Per ambari-repo-bigtop_hostname0-1
+docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "
+dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
+dnf install -y initscripts wget curl tar unzip git &&
+dnf install -y dnf-plugins-core &&
+dnf config-manager --set-enabled powertools &&
+dnf update -y
+"
+
+# Per ambari-repo-bigtop_hostname1-1
+docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "
+dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
+dnf install -y initscripts wget curl tar unzip git &&
+dnf install -y dnf-plugins-core &&
+dnf config-manager --set-enabled powertools &&
+dnf update -y
+"
+
+# Per ambari-repo-bigtop_hostname2-1
+docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "
+dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
+dnf install -y initscripts wget curl tar unzip git &&
+dnf install -y dnf-plugins-core &&
+dnf config-manager --set-enabled powertools &&
+dnf update -y
+"
+
+# Per ambari-repo-bigtop_hostname3-1
+docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "
+dnf install -y sudo openssh-server openssh-clients which iproute net-tools less vim-enhanced &&
+dnf install -y initscripts wget curl tar unzip git &&
+dnf install -y dnf-plugins-core &&
+dnf config-manager --set-enabled powertools &&
+dnf update -y
+"
+## Enable Rocky-Devel repository on all containers
+# Per ambari-repo-bigtop_hostname0-1
+docker exec -it ambari-repo-bigtop_hostname0-1 bash
+# (Modifica manualmente il file con
+vi /etc/yum.repos.d/Rocky-Devel.repo
+# There are two possible scenarios:
+# 1. If all lines are commented (start with #), uncomment all lines
+# 2. If you see "enabled=0", change it to "enabled=1"
+
+# Poi esegui:
+dnf repolist | grep devel
+exit
+
+# Per ambari-repo-bigtop_hostname1-1
+docker exec -it ambari-repo-bigtop_hostname1-1 bash
+# (Modifica manualmente il file con
+vi /etc/yum.repos.d/Rocky-Devel.repo
+# There are two possible scenarios:
+# 1. If all lines are commented (start with #), uncomment all lines
+# 2. If you see "enabled=0", change it to "enabled=1"
+
+# Poi esegui:
+dnf repolist | grep devel
+exit
+
+# Per ambari-repo-bigtop_hostname2-1
+docker exec -it ambari-repo-bigtop_hostname2-1 bash
+# (Modifica manualmente il file con
+vi /etc/yum.repos.d/Rocky-Devel.repo
+# There are two possible scenarios:
+# 1. If all lines are commented (start with #), uncomment all lines
+# 2. If you see "enabled=0", change it to "enabled=1"
+
+# Poi esegui:
+dnf repolist | grep devel
+exit
+
+# Per ambari-repo-bigtop_hostname3-1
+docker exec -it ambari-repo-bigtop_hostname3-1 bash
+# (Modifica manualmente il file con
+vi /etc/yum.repos.d/Rocky-Devel.repo
+# There are two possible scenarios:
+# 1. If all lines are commented (start with #), uncomment all lines
+# 2. If you see "enabled=0", change it to "enabled=1"
+
+# Poi esegui:
+dnf repolist | grep devel
+exit
+
+
+# =============================
+# Install Ambari Server and Agents
+# =============================
+
+## Install Ambari Server on bigtop_hostname0
+docker exec -it ambari-repo-bigtop_hostname0-1 bash
+
+# Add Ambari repository
+
+# Scarica e installa manualmente Ambari Server (repository non più disponibile)
+cd /tmp
+curl -O https://archive.apache.org/dist/ambari/ambari-2.7.7.0/redhat8/2.7.7.0-118/ambari-server-2.7.7.0-118.noarch.rpm
+curl -O https://archive.apache.org/dist/ambari/ambari-2.7.7.0/redhat8/2.7.7.0-118/ambari-log4j-2.7.7.0-118.noarch.rpm
+yum localinstall -y ambari-server-2.7.7.0-118.noarch.rpm ambari-log4j-2.7.7.0-118.noarch.rpm
+cd -
+
+# Install Ambari Server
+yum install -y ambari-server
+
+# Setup Ambari Server (uses default settings: JDK 8, Postgres embedded, default user)
+ambari-server setup -s
+
+# Start Ambari Server
+ambari-server start
+
+# Verify Ambari Server is running on port 8080
+netstat -tlnp | grep 8080
+
+exit
+
+
+## Install Ambari Agent on all containers (including bigtop_hostname0)
+
+# For bigtop_hostname0
+docker exec -it ambari-repo-bigtop_hostname0-1 bash -c "
+yum install -y ambari-agent
+sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
+ambari-agent start
+"
+
+# For bigtop_hostname1
+docker exec -it ambari-repo-bigtop_hostname1-1 bash -c "
+wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
+yum install -y ambari-agent
+sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
+ambari-agent start
+"
+
+# For bigtop_hostname2
+docker exec -it ambari-repo-bigtop_hostname2-1 bash -c "
+wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
+yum install -y ambari-agent
+sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
+ambari-agent start
+"
+
+# For bigtop_hostname3
+docker exec -it ambari-repo-bigtop_hostname3-1 bash -c "
+wget -O /etc/yum.repos.d/ambari.repo http://public-repo-1.hortonworks.com/ambari/centos8/2.x/updates/2.7.7.0/ambari.repo
+yum install -y ambari-agent
+sed -i 's/hostname=localhost/hostname=bigtop_hostname0/g' /etc/ambari-agent/conf/ambari-agent.ini
+ambari-agent start
+"
+
+
+## Access Ambari Web UI
+# Open browser and navigate to:
+# http://localhost:8080  (or http://192.168.1.230:8080 from remote)
+#
+# Default credentials:
+# Username: admin
+# Password: admin
+#
+# From Ambari Web UI, you can now:
+# 1. Create a cluster
+# 2. Install Hadoop services (HDFS, YARN, etc.)
+# 3. Manage and monitor your cluster
