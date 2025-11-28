@@ -1,7 +1,33 @@
 # Work in repository root
 
+# creare cartella conf se non esiste
+mkdir -p conf
+
+
+
 # Start the Docker containers
 docker compose up -d
+
+
+# creare cartella conf se non esiste
+mkdir -p conf
+
+## Creare file hosts per risoluzione hostname container (Accertarsi che gli IP corrispondano a quelli definiti nel docker-compose.yml)
+cat > conf/hosts << EOF
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+# Container hostnames
+172.19.0.3 bigtop_hostname0
+172.19.0.2 bigtop_hostname1
+172.19.0.4 bigtop_hostname2
+172.19.0.5 bigtop_hostname3
+EOF
+
+# Verify connectivity between containers
+docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.2   # ping bigtop_hostname1
+docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.4   # ping bigtop_hostname2
+docker exec -it ambari-repo-bigtop_hostname0-1 ping -c 2 172.19.0.5   # ping bigtop_hostname3
 
 # Create a conf directory and add a hosts file for container hostname resolution
 
