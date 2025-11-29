@@ -1,0 +1,26 @@
+# Dentro ambari-server (come root, in /ambari)
+yum -y install epel-release
+yum -y install git gcc-c++ make openssl-devel krb5-devel cyrus-sasl-devel sqlite-devel \
+  rpm-build createrepo python python-devel which tar wget bzip2 \
+  java-1.8.0-openjdk-devel maven nodejs npm
+npm install -g bower@1.8.8 ember-cli@2.18.2
+
+export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+
+# Build completo (RPM inclusi)
+mvn -B -fae clean install -DskipTests -DskipITs -Drat.skip=true \
+  -Dfindbugs.skip=true -Dpython.ver=python2.7
+
+# Genera gli RPM
+cd ambari-server
+mvn -B clean package rpm:rpm -DskipTests -Drat.skip=true -Dpython.ver=python2.7
+cd ../ambari-agent
+mvn -B clean package rpm:rpm -DskipTests -Drat.skip=true -Dpython.ver=python2.7
+
+
+Dove trovarli:
+
+ambari-server/target/rpm/ambari-server/RPMS/noarch/ambari-server-2.7.5*.rpm
+ambari-agent/target/rpm/ambari-agent/RPMS/x86_64/ambari-agent-2.7.5*.rpm
+ambari-server/target/rpm/ambari-log4j/.../ambari-log4j-2.7.5*.rpm
+Copia i 3 RPM sulla macchina host in ambari-repo/rpms/ e usa ./setup-ambari.sh per installarli nei container.
