@@ -22,7 +22,7 @@ for rpm in "${RPM_LIST[@]}"; do
     echo "[SKIP] $rpm già presente"
   else
     echo "[DOWNLOAD] $rpm"
-    if ! curl -fSL "$BASE_URL/$rpm" -o "$TARGET_DIR/$rpm"; then
+    if ! curl -fSLk "$BASE_URL/$rpm" -o "$TARGET_DIR/$rpm"; then
       echo "ERRORE: impossibile scaricare $rpm"
       echo "URL tentato: $BASE_URL/$rpm"
       exit 1
