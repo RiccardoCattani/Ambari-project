@@ -206,6 +206,197 @@ netstat -tlnp | grep 8080
 
 exit
 
+# Ristart yum repository configuration to use vault.centos.org for CentOS 7
+
+cd /etc/yum.repos.d
+
+# Togli vecchi file/conflicti
+rm -f CentOS-Base.repo epel.repo epel-testing.repo epel*.rpmsave epel*.rpmnew
+
+# Scrivi i repo solo su HTTP (vault) e un singolo EPEL
+cd /etc/yum.repos.d
+
+# elimina vecchi repo (anche epel duplicati)
+rm -f CentOS-*.repo epel*.repo
+
+# scrivi repo espliciti su vault (niente https, niente mirrorlist)
+cd /etc/yum.repos.d
+rm -f CentOS-*.repo epel*.repo
+
+cat > CentOS-Vault.repo <<'EOF'
+[base]
+name=CentOS-7 - Base
+baseurl=http://archive.kernel.org/centos-vault/7.9.2009/os/$basearch/
+gpgcheck=0
+enabled=1
+
+[updates]
+name=CentOS-7 - Updates
+baseurl=http://archive.kernel.org/centos-vault/7.9.2009/updates/$basearch/
+gpgcheck=0
+enabled=1
+
+[extras]
+name=CentOS-7 - Extras
+baseurl=http://archive.kernel.org/centos-vault/7.9.2009/extras/$basearch/
+gpgcheck=0
+enabled=1
+EOF
+
+cat > epel.repo <<'EOF'
+[epel]
+name=EPEL 7
+baseurl=https://dl.fedoraproject.org/pub/epel/7/$basearch/
+enabled=1
+gpgcheck=0
+EOF
+
+sed -i 's/^enabled=1/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
+
+yum clean all
+yum makecache
+
+
+# opzionale - Rigenerazione cache yum
+
+cd /etc/yum.repos.d
+sed -i 's/^enabled=1/enabled=0/' epel.repo
+yum clean all
+yum makecache
+
+# Install NTP packages on all containers (opzionale, ma consigliato)
+yum install -y ntp ntpdate
+
+# Controllo che non restino URL https di vault
+grep -R "vault.centos.org" /etc/yum.repos.d
+curl -I http://vault.centos.org/centos/7.9.2009/os/x86_64/repodata/repomd.xml
+
+yum clean all
+yum makecache
+
+
+# Install NTP packages on all containers (opzionale, ma consigliato)
+yum install -y ntp ntpdate
+ntpdate pool.ntp.org
+
+# sincronizza una volta
+ntpdate pool.ntp.org
+
+# avvia ntpd in foreground come demone semplice (non esistendo su docker systemd )
+ntpd -g -c /etc/ntp.conf -p /var/run/ntpd.pid -u ntp:ntp
+
+# Install JDK 8 on all containers (necessario per Ambari 2.7.x)
+curl -fsSL -o /tmp/jdk8.tar.gz https://cdn.azul.com/zulu/bin/zulu8.74.0.17-ca-jdk8.0.392-linux_x64.tar.gz
+docker cp /tmp/jdk8.tar.gz docker-ambari:/opt/jdk8/jdk8.tar.gz
+docker exec -it docker-ambari bash -lc '
+set -e
+mkdir -p /opt/jdk8
+cd /opt/jdk8
+tar -xzf jdk8.tar.gz && rm -f jdk8.tar.gz
+JDK_HOME=$(echo /opt/jdk8/* | awk "{print \$1}")
+[ -x "$JDK_HOME/bin/java" ] || { echo "java binary not found in $JDK_HOME"; exit 1; }
+ln -sfn "$JDK_HOME" /opt/jdk8/current
+/opt/jdk8/current/bin/java -version
+'
+
+
+# Vedi i nomi attivi
+docker ps --format '{{.Names}}'
+
+# se lo stack non è su, avvia:
+# docker-compose -f docker-compose.ambari.yml up -d   (oppure: docker compose ...)
+
+# Copia il JDK dentro ambari-server
+docker cp /tmp/jdk8.tar.gz ambari-server:/opt/jdk8/jdk8.tar.gz
+
+# Scompatta e verifica
+docker exec -it ambari-server bash -lc '
+set -e
+mkdir -p /opt/jdk8
+cd /opt/jdk8
+tar -xzf jdk8.tar.gz && rm -f jdk8.tar.gz
+JDK_HOME=$(echo /opt/jdk8/* | awk "{print \$1}")
+[ -x "$JDK_HOME/bin/java" ] || { echo "java binary not found in $JDK_HOME"; exit 1; }
+ln -sfn "$JDK_HOME" /opt/jdk8/current
+/opt/jdk8/current/bin/java -version
+'
+
+# torno dentro ambari server
+docker exec -it ambari-server bash	
+
+# Se hai già estratto il JDK 8 in /opt/jdk8/current, usa quello.
+# Altrimenti installa un JDK 8 rapido:
+yum install -y java-1.8.0-openjdk-devel
+
+# Install Maven 3.6.3 on ambari-server (necessario per build progetti)
+cd /opt
+curl -fL http://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz -o maven.tgz
+tar -xzf maven.tgz
+ln -sfn /opt/apache-maven-3.6.3 /opt/maven
+
+cat > /etc/profile.d/maven.sh <<'EOF'
+export M2_HOME=/opt/maven
+export PATH=$M2_HOME/bin:$PATH
+export JAVA_HOME=/opt/jdk8/current   # se esiste; altrimenti usa /usr/lib/jvm/java-1.8.0-openjdk
+export PATH=$JAVA_HOME/bin:$PATH
+EOF
+source /etc/profile.d/maven.sh
+
+mvn -version
+java -version
+
+
+# Verifica Maven e Java
+source /etc/profile.d/maven.sh
+export JAVA_HOME=/opt/jdk8/current   # se esiste; altrimenti /usr/lib/jvm/java-1.8.0-openjdk
+export PATH=$JAVA_HOME/bin:$PATH
+mvn -version
+java -version
+
+# Entra in ambari-server per clonare il sorgente Ambari
+docker exec -it ambari-server bash
+
+# Install Git to clone Ambari source code
+yum install -y git
+cd /
+git clone https://github.com/apache/ambari.git ambari
+cd /ambari
+git checkout release-2.7.5
+
+# Build Ambari server from source
+source /etc/profile.d/maven.sh
+export JAVA_HOME=/opt/jdk8/current    # oppure /usr/lib/jvm/java-1.8.0-openjdk
+export PATH=$JAVA_HOME/bin:$PATH
+mvn -version
+java -version
+
+# Build Ambari server (skip Ambari Web and Admin for faster build)
+cd /ambari
+mvn -B -fae clean install -DskipTests -DskipITs -Drat.skip=true -Dfindbugs.skip=true -Dpython.ver=python2.7 \
+  -DskipAmbariWeb -DskipAmbariAdmin -pl '!ambari-web,!ambari-logsearch/ambari-logsearch-web,!ambari-admin' -am
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Verifica che non restino URL https di CentOS
+grep -R "https://vault.centos.org" /etc/yum.repos.d || true
+grep -R "http://vault.centos.org" /etc/yum.repos.d
+
+yum clean all
+yum makecache
+
+
+
 ## Access Ambari Web UI
 # Open browser and navigate to:
 # http://localhost:8080  (or http://192.168.1.230:8080 from remote)
